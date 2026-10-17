@@ -1,0 +1,3 @@
+# No runtime dependencies — the GUI uses tkinter from the Python standard library.
+# PyInstaller is only needed to build the standalone .exe (scripts\build_exe.bat).
+pyinstaller>=6.0
