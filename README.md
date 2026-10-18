@@ -8,7 +8,7 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 > Google's own emulator (open-source, part of AOSP). That is the honest, shippable scope
 > for a solo project: nobody needs to reimplement QEMU or the GPU translator.
 
-## Features (v0.2.3)
+## Features (v0.2.4)
 
 - One-click Setup: downloads Google's emulator + Android 14 Play Store image (~3–4 GB, once)
 - **RAM choice per device** — 1 GB / 2 GB / 4 GB when creating a device
@@ -19,6 +19,7 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 - Setup self-check: clear message if the system image download didn't finish
 - Setup fix: avdmanager now gets an explicit SDK root (fixes "Package path is not valid" on PCs with a stale ANDROID_HOME)
 - v0.2.3: --sdk_root moved after the verb (avdmanager rejects it as a global flag), with automatic fallback
+- **Device model picker** — create different models (Pixel, Nexus, tablets, TV, Automotive — whatever Google ships; note: Google only provides generic profiles, no Samsung/OnePlus-branded models)
 - Setup auto-retry: interrupted downloads are retried automatically (up to 3 times)
 - Launch / Delete devices, live log window
 
@@ -36,16 +37,21 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 5. In the app: **Step 1: Setup** (downloads SDK + emulator + Android image, ~3–4 GB, one time)
 → **Step 2: Create device** → **Launch**. Done.
 
+
 Or build a single `.exe`: run `scripts\build_exe.bat` (no Python needed afterwards).
 
+
 ## Requirements
+
 
 - Windows 10/11, 64-bit
 - Virtualization enabled in BIOS (Intel VT-x / AMD-V)
 - 8 GB RAM recommended, ~10 GB free disk
 - Internet connection (first setup downloads Google's packages)
 
+
 ## How it works
+
 
 1. Downloads Android **command-line tools** from Google (`dl.google.com`).
 2. Uses `sdkmanager` to install `platform-tools`, `emulator`, and a system image
