@@ -33,7 +33,8 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
    pip install -r requirements.txt
    python main.py
    ```
-5. In the app: **Step 1: Setup** (downloads SDK + emulator + Android image, ~3–4 GB, one time) → **Step 2: Create device** → **Launch**. Done.
+5. In the app: **Step 1: Setup** (downloads SDK + emulator + Android image, ~3–4 GB, one time)
+→ **Step 2: Create device** → **Launch**. Done.
 
 Or build a single `.exe`: run `scripts\build_exe.bat` (no Python needed afterwards).
 
