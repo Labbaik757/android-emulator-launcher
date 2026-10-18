@@ -1,5 +1,6 @@
 """Create / list / launch / delete / clone Android Virtual Devices."""
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -32,6 +33,33 @@ def list_avds(sdk_dir=None):
     return [l.strip() for l in r.stdout.splitlines() if l.strip()]
 
 
+def list_device_profiles(sdk_dir=None):
+    """Return [(id, name, oem), ...] of hardware profiles from `avdmanager list device`."""
+    paths = sdk.sdk_paths(sdk_dir)
+    r = _run([paths["avdmanager"], "list", "device"],
+             sdk_dir=sdk_dir, capture_output=True, text=True, timeout=60)
+    profiles, cur = [], {}
+    for raw in r.stdout.splitlines():
+        line = raw.strip()
+        if line.startswith("id:"):
+            m = re.search(r'"([^"]+)"', line)
+            if m:
+                if cur.get("id"):
+                    profiles.append(cur)
+                cur = {"id": m.group(1), "name": "", "oem": ""}
+        elif line.startswith("Name:"):
+            cur["name"] = line.split("Name:", 1)[1].strip()
+        elif line.startswith("OEM"):
+            cur["oem"] = line.split(":", 1)[1].strip()
+        elif line.startswith("---"):
+            if cur.get("id"):
+                profiles.append(cur)
+                cur = {}
+    if cur.get("id"):
+        profiles.append(cur)
+    return [(p["id"], p.get("name") or p["id"], p.get("oem") or "") for p in profiles]
+
+
 def _image_install_dir(sdk_dir=None):
     # "system-images;android-34;google_apis_playstore;x86_64" -> path parts
     parts = config.SYSTEM_IMAGE.split(";")
@@ -46,7 +74,7 @@ def system_image_installed(sdk_dir=None):
             and os.path.isfile(os.path.join(d, "system.img")))
 
 
-def create_avd(name, log, sdk_dir=None, ram_mb=None):
+def create_avd(name, log, sdk_dir=None, ram_mb=None, device_profile=None):
     # Self-heal: package.xml without system.img means an interrupted download.
     # Remove it so the next Setup re-downloads the image cleanly instead of
     # avdmanager failing cryptically on a half-present image.
@@ -74,7 +102,7 @@ def create_avd(name, log, sdk_dir=None, ram_mb=None):
         "--sdk_root=" + paths["sdk_dir"],
         "-n", name,
         "-k", config.SYSTEM_IMAGE,
-        "-d", config.DEVICE_PROFILE,
+        "-d", device_profile or config.DEVICE_PROFILE,
         "--force",
     ]
     r = _run(avd_args, sdk_dir=sdk_dir, input="no\n",
