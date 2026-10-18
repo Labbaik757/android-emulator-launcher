@@ -2,7 +2,12 @@
 import os
 
 APP_NAME = "Android Emulator Launcher"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
+
+# GitHub repo — used by the in-app update checker.
+GITHUB_REPO = "Labbaik757/android-emulator-launcher"
+RELEASES_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+RELEASES_PAGE_URL = f"https://github.com/{GITHUB_REPO}/releases/latest"
 
 # Default SDK location (same default Android Studio uses).
 SDK_DIR = os.path.join(
@@ -32,3 +37,5 @@ DEVICE_PROFILE = "pixel"
 # host RAM (fine for light apps). Use 2048+ for heavy games — but each running
 # device then needs that much host RAM.
 DEVICE_RAM_MB = 1024
+# RAM choices offered in the GUI when creating a device.
+RAM_OPTIONS_MB = [1024, 2048, 4096]
