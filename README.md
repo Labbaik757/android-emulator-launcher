@@ -8,9 +8,9 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 > Google's own emulator (open-source, part of AOSP). That is the honest, shippable scope
 > for a solo project: nobody needs to reimplement QEMU or the GPU translator.
 
-## Features (v0.2.2)
+## Features (v0.2.3)
 
-- One-click Setup: downloads Google's emulator + Android 14 Play Store image (~3–4 GB, once)
+- One-click Setup: downloads Google's emulator + Android 14 Play Store image (~3-4 GB, once)
 - **RAM choice per device** — 1 GB / 2 GB / 4 GB when creating a device
 - **Install APK** — pick any `.apk` and install it on the running device
 - **Clone device** — duplicate a configured device (apps + data) for multi-account use
@@ -18,12 +18,13 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 - **Auto-update check** — the app tells you when a newer release is on GitHub
 - Setup self-check: clear message if the system image download didn't finish
 - Setup fix: avdmanager now gets an explicit SDK root (fixes "Package path is not valid" on PCs with a stale ANDROID_HOME)
+- v0.2.3: --sdk_root moved after the verb (avdmanager rejects it as a global flag), with automatic fallback
 - Setup auto-retry: interrupted downloads are retried automatically (up to 3 times)
 - Launch / Delete devices, live log window
 
 ## Quick start (Windows 10/11, 64-bit)
 
-1. Install Python 3.10+ from python.org (tick **"Add python.exe to PATH"** during install).
+1. Install Python 3.10+ from python.org (tick **Add python.exe to PATH** during install).
 2. Install Java (Eclipse Temurin from adoptium.net) — required by Google's `sdkmanager`.
 3. Enable virtualization in your BIOS: **Intel VT-x** or **AMD-V** (check Task Manager →
    Performance → CPU → "Virtualization: Enabled").
@@ -32,10 +33,10 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
    pip install -r requirements.txt
    python main.py
    ```
-5. In the app: **Step 1: Setup** (downloads SDK + emulator + Android image, ~3–4 GB, one time)
+5. In the app: **Step 1: Setup** (downloads SDK + emulator + Android image, ~3-4 GB, one time)
    → **Step 2: Create device** → **Launch**. Done.
 
-Or build a single `.exe`: run `scripts\build_exe.bat` (no Python needed afterwards).
+Or build a single `.exe`: run `scripts/build_exe.bat` (no Python needed afterwards).
 
 ## Requirements
 
@@ -63,40 +64,3 @@ free and open-source.
 **Does it have the Play Store?**
 Yes — the default system image is `google_apis_playstore`, which ships the Play Store
 (Google's own distribution channel for emulator images).
-
-**Will it beat BlueStacks for gaming?**
-Honestly, no. BlueStacks/LDPlayer have years of game-specific polish (keymapping,
-macros, multi-instance). This is a free, open-source, no-ads alternative for running
-Android apps on Windows.
-
-## Project layout
-
-```
-android-emulator-launcher/
-├── main.py                 # GUI entry point
-├── app/
-│   ├── config.py           # URLs, package list, paths
-│   ├── sdk.py              # SDK download + package install
-│   ├── avd.py              # AVD create/list/launch/delete/clone/APK install
-│   └── updater.py          # GitHub release update checker
-├── scripts/
-│   └── build_exe.bat       # PyInstaller one-file build
-├── .github/workflows/
-│   └── build.yml           # CI: builds Windows .exe on release
-├── requirements.txt
-└── LICENSE                 # MIT
-```
-
-## Roadmap
-
-- [x] Per-device RAM choice (1/2/4 GB)
-- [x] APK install button
-- [x] Device clone
-- [x] Launch-all button
-- [x] Auto-update check
-- [ ] Snapshot save/load buttons
-- [ ] Dark mode
-
-## License
-
-MIT — free for everyone, commercial use allowed. See `LICENSE`.
