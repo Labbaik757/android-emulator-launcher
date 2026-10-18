@@ -2,9 +2,9 @@
 import os
 
 APP_NAME = "Android Emulator Launcher"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 
-# GitHub repo — used by the in-app update checker.
+# GitHub repo – used by the in-app update checker.
 GITHUB_REPO = "Labbaik757/android-emulator-launcher"
 RELEASES_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 RELEASES_PAGE_URL = f"https://github.com/{GITHUB_REPO}/releases/latest"
@@ -14,7 +14,7 @@ SDK_DIR = os.path.join(
     os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "Android", "Sdk"
 )
 
-# Google's command-line tools. The build number changes over time — if this URL
+# Google's command-line tools. The build number changes over time – if this URL
 # ever 404s, open https://developer.android.com/studio, scroll to
 # "Command line tools only", and copy the Windows link here.
 CMDLINE_TOOLS_URL = (
@@ -34,7 +34,7 @@ DEFAULT_AVD_NAME = "Pixel_API34"
 # Must match an id from `avdmanager list device`. "pixel" exists in every version.
 DEVICE_PROFILE = "pixel"
 # Guest RAM per virtual device, in MB. 1024 keeps each running device light on
-# host RAM (fine for light apps). Use 2048+ for heavy games — but each running
+# host RAM (fine for light apps). Use 2048+ for heavy games – but each running
 # device then needs that much host RAM.
 DEVICE_RAM_MB = 1024
 # RAM choices offered in the GUI when creating a device.
