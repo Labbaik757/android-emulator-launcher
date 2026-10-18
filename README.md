@@ -8,7 +8,7 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 > Google's own emulator (open-source, part of AOSP). That is the honest, shippable scope
 > for a solo project: nobody needs to reimplement QEMU or the GPU translator.
 
-## Features (v0.2.1)
+## Features (v0.2.2)
 
 - One-click Setup: downloads Google's emulator + Android 14 Play Store image (~3–4 GB, once)
 - **RAM choice per device** — 1 GB / 2 GB / 4 GB when creating a device
@@ -17,6 +17,8 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 - **Launch All** — start every device with one click (staggered, so the PC stays responsive)
 - **Auto-update check** — the app tells you when a newer release is on GitHub
 - Setup self-check: clear message if the system image download didn't finish
+- Setup fix: avdmanager now gets an explicit SDK root (fixes "Package path is not valid" on PCs with a stale ANDROID_HOME)
+- Setup auto-retry: interrupted downloads are retried automatically (up to 3 times)
 - Launch / Delete devices, live log window
 
 ## Quick start (Windows 10/11, 64-bit)
