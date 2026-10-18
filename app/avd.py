@@ -1,4 +1,5 @@
 """Create / list / launch / delete Android Virtual Devices."""
+import os
 import subprocess
 import sys
 
@@ -29,16 +30,41 @@ def create_avd(name, log, sdk_dir=None):
             "-k", config.SYSTEM_IMAGE,
             "-d", config.DEVICE_PROFILE,
             "--force",
-],
+        ],
         input="no\n",
         text=True,
         capture_output=True,
         timeout=600,
-)
+    )
     log((r.stdout + r.stderr)[-2000:])
     if r.returncode != 0:
         raise RuntimeError(f"avdmanager failed (exit {r.returncode}).")
+    _set_ram_size(name, config.DEVICE_RAM_MB, log)
     log(f"Device '{name}' created.")
+
+
+def _set_ram_size(name, mb, log):
+    """Clamp the AVD's guest RAM so each running device stays light on host RAM."""
+    ini = os.path.join(os.path.expanduser("~"), ".android", "avd",
+                       f"{name}.avd", "config.ini")
+    try:
+        with open(ini, "r", encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        log("Warning: config.ini not found, RAM tweak skipped.")
+        return
+    out, seen = [], False
+    for line in lines:
+        if line.startswith("hw.ramSize="):
+            out.append(f"hw.ramSize={mb}")
+            seen = True
+        else:
+            out.append(line)
+    if not seen:
+        out.append(f"hw.ramSize={mb}")
+    with open(ini, "w", encoding="utf-8") as f:
+        f.write("\n".join(out) + "\n")
+    log(f"Device RAM limited to {mb} MB.")
 
 
 def delete_avd(name, sdk_dir=None):
@@ -50,7 +76,7 @@ def delete_avd(name, sdk_dir=None):
 def launch_avd(name, sdk_dir=None):
     """Start the emulator detached (returns immediately)."""
     paths = sdk.sdk_paths(sdk_dir)
-    DETACHED = 0x00000008 # DETACHED_PROCESS
+    DETACHED = 0x00000008  # DETACHED_PROCESS
     subprocess.Popen(
         [paths["emulator"], "-avd", name],
         creationflags=CREATE_NO_WINDOW | DETACHED,
@@ -58,4 +84,4 @@ def launch_avd(name, sdk_dir=None):
         stderr=subprocess.DEVNULL,
         stdin=subprocess.DEVNULL,
         close_fds=True,
-)
+    )
