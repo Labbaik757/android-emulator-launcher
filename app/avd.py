@@ -20,7 +20,22 @@ def list_avds(sdk_dir=None):
     return [l.strip() for l in r.stdout.splitlines() if l.strip()]
 
 
+def _image_install_dir(sdk_dir=None):
+    # "system-images;android-34;google_apis_playstore;x86_64" -> path parts
+    parts = config.SYSTEM_IMAGE.split(";")
+    return os.path.join(sdk.sdk_paths(sdk_dir)["sdk_dir"], *parts)
+
+
+def system_image_installed(sdk_dir=None):
+    return os.path.isfile(os.path.join(_image_install_dir(sdk_dir), "package.xml"))
+
+
 def create_avd(name, log, sdk_dir=None, ram_mb=None):
+    if not system_image_installed(sdk_dir):
+        raise RuntimeError(
+            "System image is not installed — the Setup download didn't finish. "
+            "Click '1. Setup' again and wait for 'All packages installed.' in the log."
+        )
     paths = sdk.sdk_paths(sdk_dir)
     log(f"Creating virtual device '{name}'...")
     # "no" = don't use a custom hardware profile.
