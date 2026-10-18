@@ -28,3 +28,7 @@ SYSTEM_IMAGE = "system-images;android-34;google_apis_playstore;x86_64"
 DEFAULT_AVD_NAME = "Pixel_API34"
 # Must match an id from `avdmanager list device`. "pixel" exists in every version.
 DEVICE_PROFILE = "pixel"
+# Guest RAM per virtual device, in MB. 1024 keeps each running device light on
+# host RAM (fine for light apps). Use 2048+ for heavy games — but each running
+# device then needs that much host RAM.
+DEVICE_RAM_MB = 1024
