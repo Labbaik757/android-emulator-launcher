@@ -9,14 +9,26 @@ from . import config, sdk
 CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
-def _run(cmd, **kwargs):
+def _run(cmd, sdk_dir=None, **kwargs):
     kwargs.setdefault("creationflags", CREATE_NO_WINDOW)
+    # Pin the SDK location for every child process: avdmanager resolves its
+    # SDK root on its own when not given --sdk_root, so a stale ANDROID_HOME /
+    # ANDROID_SDK_ROOT on the user's PC can make it scan a different,
+    # image-less SDK directory -- surfacing as "Error: Package path is not
+    # valid. Valid system image paths are: null". Forcing the variables
+    # removes that whole failure class.
+    env = dict(kwargs.pop("env", None) or os.environ)
+    root = sdk.sdk_paths(sdk_dir)["sdk_dir"]
+    env["ANDROID_HOME"] = root
+    env["ANDROID_SDK_ROOT"] = root
+    kwargs["env"] = env
     return subprocess.run(cmd, **kwargs)
 
 
 def list_avds(sdk_dir=None):
     paths = sdk.sdk_paths(sdk_dir)
-    r = _run([paths["emulator"], "-list-avds"], capture_output=True, text=True, timeout=60)
+    r = _run([paths["emulator"], "-list-avds"], sdk_dir=sdk_dir,
+             capture_output=True, text=True, timeout=60)
     return [l.strip() for l in r.stdout.splitlines() if l.strip()]
 
 
@@ -27,10 +39,22 @@ def _image_install_dir(sdk_dir=None):
 
 
 def system_image_installed(sdk_dir=None):
-    return os.path.isfile(os.path.join(_image_install_dir(sdk_dir), "package.xml"))
+    # Both files must exist: a download interrupted mid-way can leave
+    # package.xml behind without the actual system.img.
+    d = _image_install_dir(sdk_dir)
+    return (os.path.isfile(os.path.join(d, "package.xml"))
+            and os.path.isfile(os.path.join(d, "system.img")))
 
 
 def create_avd(name, log, sdk_dir=None, ram_mb=None):
+    # Self-heal: package.xml without system.img means an interrupted download.
+    # Remove it so the next Setup re-downloads the image cleanly instead of
+    # avdmanager failing cryptically on a half-present image.
+    img_dir = _image_install_dir(sdk_dir)
+    if (os.path.isfile(os.path.join(img_dir, "package.xml"))
+            and not os.path.isfile(os.path.join(img_dir, "system.img"))):
+        log("Incomplete system image found -- removing it so Setup can re-download...")
+        shutil.rmtree(img_dir, ignore_errors=True)
     if not system_image_installed(sdk_dir):
         raise RuntimeError(
             "System image is not installed — the Setup download didn't finish. "
@@ -39,14 +63,19 @@ def create_avd(name, log, sdk_dir=None, ram_mb=None):
     paths = sdk.sdk_paths(sdk_dir)
     log(f"Creating virtual device '{name}'...")
     # "no" = don't use a custom hardware profile.
+    # --sdk_root is passed explicitly: without it avdmanager resolves the SDK
+    # root on its own and may scan an image-less directory ("Valid system
+    # image paths are: null"). Global options go before the "create" verb.
     r = _run(
         [
-            paths["avdmanager"], "create", "avd",
+            paths["avdmanager"], "--sdk_root=" + paths["sdk_dir"],
+            "create", "avd",
             "-n", name,
             "-k", config.SYSTEM_IMAGE,
             "-d", config.DEVICE_PROFILE,
             "--force",
         ],
+        sdk_dir=sdk_dir,
         input="no\n",
         text=True,
         capture_output=True,
@@ -54,6 +83,14 @@ def create_avd(name, log, sdk_dir=None, ram_mb=None):
     )
     log((r.stdout + r.stderr)[-2000:])
     if r.returncode != 0:
+        # Self-diagnosing details: which SDK root avdmanager actually used
+        # and what images were visible there.
+        try:
+            seen = sorted(os.listdir(os.path.join(paths["sdk_dir"], "system-images")))
+        except OSError:
+            seen = []
+        log(f"SDK root used: {paths['sdk_dir']}")
+        log(f"System images visible there: {seen if seen else 'NONE'}")
         raise RuntimeError(f"avdmanager failed (exit {r.returncode}).")
     _set_ram_size(name, ram_mb or config.DEVICE_RAM_MB, log)
     log(f"Device '{name}' created.")
@@ -130,7 +167,7 @@ def clone_avd(name, new_name, log, sdk_dir=None):
 def get_running_avds(sdk_dir=None):
     """Return {emulator_serial: avd_name} for currently running devices."""
     adb = sdk.sdk_paths(sdk_dir)["adb"]
-    r = _run([adb, "devices"], capture_output=True, text=True, timeout=30)
+    r = _run([adb, "devices"], sdk_dir=sdk_dir, capture_output=True, text=True, timeout=30)
     mapping = {}
     for line in r.stdout.splitlines()[1:]:
         parts = line.split()
@@ -139,7 +176,7 @@ def get_running_avds(sdk_dir=None):
             name = serial
             try:
                 n = _run([adb, "-s", serial, "emu", "avd", "name"],
-                         capture_output=True, text=True, timeout=15)
+                         sdk_dir=sdk_dir, capture_output=True, text=True, timeout=15)
                 first = next((l.strip() for l in n.stdout.splitlines() if l.strip()), "")
                 if first and first.upper() != "OK":
                     name = first
@@ -160,7 +197,7 @@ def install_apk(avd_name, apk_path, log, sdk_dir=None):
         raise RuntimeError(f"Device '{avd_name}' is not running — launch it first.")
     log(f"Installing {os.path.basename(apk_path)} on '{avd_name}'...")
     r = _run([adb, "-s", serial, "install", "-r", apk_path],
-             capture_output=True, text=True, timeout=300)
+             sdk_dir=sdk_dir, capture_output=True, text=True, timeout=300)
     log((r.stdout + r.stderr)[-2000:])
     if "Success" not in (r.stdout + r.stderr):
         raise RuntimeError("APK install failed — see the log above.")
@@ -169,14 +206,20 @@ def install_apk(avd_name, apk_path, log, sdk_dir=None):
 
 def delete_avd(name, sdk_dir=None):
     paths = sdk.sdk_paths(sdk_dir)
-    _run([paths["avdmanager"], "delete", "avd", "-n", name],
-         capture_output=True, timeout=120)
+    _run([paths["avdmanager"], "--sdk_root=" + paths["sdk_dir"],
+          "delete", "avd", "-n", name],
+         sdk_dir=sdk_dir, capture_output=True, timeout=120)
 
 
 def launch_avd(name, sdk_dir=None):
     """Start the emulator detached (returns immediately)."""
     paths = sdk.sdk_paths(sdk_dir)
     DETACHED = 0x00000008  # DETACHED_PROCESS
+    # Pin the SDK location like _run does, so the emulator never resolves
+    # a different SDK root from a stale environment.
+    env = dict(os.environ)
+    env["ANDROID_HOME"] = paths["sdk_dir"]
+    env["ANDROID_SDK_ROOT"] = paths["sdk_dir"]
     subprocess.Popen(
         [paths["emulator"], "-avd", name],
         creationflags=CREATE_NO_WINDOW | DETACHED,
@@ -184,4 +227,5 @@ def launch_avd(name, sdk_dir=None):
         stderr=subprocess.DEVNULL,
         stdin=subprocess.DEVNULL,
         close_fds=True,
+        env=env,
     )
