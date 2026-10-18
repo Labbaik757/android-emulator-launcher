@@ -15,7 +15,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"{config.APP_NAME} v{config.APP_VERSION}")
-        self.geometry("660x560")
+        self.geometry("660x600")
         self.resizable(False, False)
         self.log_q = queue.Queue()
 
@@ -39,24 +39,35 @@ class App(tk.Tk):
         btns = tk.Frame(self)
         btns.pack(pady=10)
         tk.Button(btns, text="1. Setup (one-time download)", width=24,
-                  command=self.do_setup).grid(row=0, column=0, padx=4)
+                  command=self.do_setup).grid(row=0, column=0, columnspan=2, padx=4)
         tk.Button(btns, text="2. Create device", width=16,
-                  command=self.do_create).grid(row=0, column=1, padx=4)
-        tk.Label(btns, text="RAM:", font=("Segoe UI", 9)).grid(row=0, column=2)
+                  command=self.do_create).grid(row=0, column=2, columnspan=2, padx=4)
+
+        tk.Label(btns, text="Model:", font=("Segoe UI", 9)).grid(row=1, column=0,
+                                                                 sticky="e")
+        self.model_var = tk.StringVar(value="Setup ke baad load hoga...")
+        self._profile_ids = {}
+        self._profiles_loaded = False
+        self.model_menu = tk.OptionMenu(btns, self.model_var, "")
+        self.model_menu.config(width=30, anchor="w")
+        self.model_menu.grid(row=1, column=1, columnspan=2, padx=4, pady=4, sticky="w")
+        tk.Label(btns, text="RAM:", font=("Segoe UI", 9)).grid(row=1, column=3,
+                                                               sticky="e")
         self.ram_var = tk.StringVar(value=RAM_LABELS[config.DEVICE_RAM_MB])
         tk.OptionMenu(btns, self.ram_var,
-                      *[RAM_LABELS[m] for m in config.RAM_OPTIONS_MB]).grid(row=0, column=3)
+                      *[RAM_LABELS[m] for m in config.RAM_OPTIONS_MB]).grid(row=1, column=4,
+                                                                            sticky="w")
 
         tk.Button(btns, text="Launch", width=10,
-                  command=self.do_launch).grid(row=1, column=0, padx=4, pady=4)
+                  command=self.do_launch).grid(row=2, column=0, padx=4, pady=4)
         tk.Button(btns, text="Launch All", width=10,
-                  command=self.do_launch_all).grid(row=1, column=1, padx=4, pady=4)
+                  command=self.do_launch_all).grid(row=2, column=1, padx=4, pady=4)
         tk.Button(btns, text="Clone", width=10,
-                  command=self.do_clone).grid(row=1, column=2, padx=4, pady=4)
+                  command=self.do_clone).grid(row=2, column=2, padx=4, pady=4)
         tk.Button(btns, text="Install APK", width=10,
-                  command=self.do_install_apk).grid(row=1, column=3, padx=4, pady=4)
+                  command=self.do_install_apk).grid(row=2, column=3, padx=4, pady=4)
         tk.Button(btns, text="Delete", width=10,
-                  command=self.do_delete).grid(row=1, column=4, padx=4, pady=4)
+                  command=self.do_delete).grid(row=2, column=4, padx=4, pady=4)
 
         tk.Label(self, text="Your virtual devices:", font=("Segoe UI", 9, "bold"),
                  anchor="w").pack(fill="x", padx=16)
@@ -85,6 +96,47 @@ class App(tk.Tk):
         self.update_label.config(text=f"Update available: {latest}")
         self.update_frame.pack(fill="x", before=self._title_anchor)
         self.log(f"Update available: {latest} — click 'Download update' above.")
+
+    # ---- device model profiles ----
+    def _ensure_models(self):
+        """Fetch hardware profiles once (after Setup). Runs the slow part in bg."""
+        if self._profiles_loaded:
+            return
+        self._profiles_loaded = True
+
+        def job():
+            try:
+                profiles = avd.list_device_profiles()
+            except Exception:
+                profiles = []
+            self.after(0, lambda: self._populate_models(profiles))
+
+        threading.Thread(target=job, daemon=True).start()
+
+    def _populate_models(self, profiles):
+        menu = self.model_menu["menu"]
+        menu.delete(0, "end")
+        self._profile_ids = {}
+        for pid, name, oem in profiles:
+            label = f"{name} [{oem}]" if oem and oem.lower() not in name.lower() else name
+            base, i = label, 2
+            while base in self._profile_ids:
+                base = f"{label} ({i})"
+                i += 1
+            label = base
+            self._profile_ids[label] = pid
+            menu.add_command(label=label,
+                             command=lambda l=label: self.model_var.set(l))
+        if not self._profile_ids:
+            # Fallback: avdmanager gave nothing — keep the default working.
+            self._profile_ids = {"Pixel (default)": config.DEVICE_PROFILE}
+            menu.add_command(label="Pixel (default)",
+                             command=lambda: self.model_var.set("Pixel (default)"))
+        labels = list(self._profile_ids)
+        default = next((l for l in labels
+                        if "pixel" in self._profile_ids[l].lower()), labels[0])
+        self.model_var.set(default)
+        self.log(f"{len(labels)} device models loaded.")
 
     # ---- logging from worker threads ----
     def log(self, msg):
@@ -125,6 +177,7 @@ class App(tk.Tk):
             self.log("Step 2/2: installing emulator + system image...")
             sdk.install_packages(self.log)
             self.log("Setup complete! Now click '2. Create device'.")
+            self._profiles_loaded = False  # reload hardware profiles next refresh
         self.run_bg(job)
 
     def do_create(self):
@@ -138,7 +191,9 @@ class App(tk.Tk):
         ram_mb = next((m for m, lbl in RAM_LABELS.items()
                        if lbl == self.ram_var.get()), config.DEVICE_RAM_MB)
         clean = name.strip().replace(" ", "_")
-        self.run_bg(lambda: avd.create_avd(clean, self.log, ram_mb=ram_mb))
+        profile = self._profile_ids.get(self.model_var.get(), config.DEVICE_PROFILE)
+        self.run_bg(lambda: avd.create_avd(clean, self.log, ram_mb=ram_mb,
+                                           device_profile=profile))
 
     def do_launch(self):
         name = self.selected()
@@ -199,6 +254,7 @@ class App(tk.Tk):
             if sdk.is_setup():
                 for d in avd.list_avds():
                     self.devices.insert("end", d)
+                self._ensure_models()
             elif not silent:
                 self.log("SDK not set up yet — click '1. Setup'.")
         except Exception as e:  # noqa: BLE001
