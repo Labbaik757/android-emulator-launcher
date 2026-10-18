@@ -37,21 +37,16 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 5. In the app: **Step 1: Setup** (downloads SDK + emulator + Android image, ~3–4 GB, one time)
 → **Step 2: Create device** → **Launch**. Done.
 
-
 Or build a single `.exe`: run `scripts\build_exe.bat` (no Python needed afterwards).
 
-
 ## Requirements
-
 
 - Windows 10/11, 64-bit
 - Virtualization enabled in BIOS (Intel VT-x / AMD-V)
 - 8 GB RAM recommended, ~10 GB free disk
 - Internet connection (first setup downloads Google's packages)
 
-
 ## How it works
-
 
 1. Downloads Android **command-line tools** from Google (`dl.google.com`).
 2. Uses `sdkmanager` to install `platform-tools`, `emulator`, and a system image
