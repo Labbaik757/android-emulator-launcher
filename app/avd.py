@@ -65,23 +65,31 @@ def create_avd(name, log, sdk_dir=None, ram_mb=None):
     # "no" = don't use a custom hardware profile.
     # --sdk_root is passed explicitly: without it avdmanager resolves the SDK
     # root on its own and may scan an image-less directory ("Valid system
-    # image paths are: null"). Global options go before the "create" verb.
-    r = _run(
-        [
-            paths["avdmanager"], "--sdk_root=" + paths["sdk_dir"],
-            "create", "avd",
-            "-n", name,
-            "-k", config.SYSTEM_IMAGE,
-            "-d", config.DEVICE_PROFILE,
-            "--force",
-        ],
-        sdk_dir=sdk_dir,
-        input="no\n",
-        text=True,
-        capture_output=True,
-        timeout=600,
-    )
-    log((r.stdout + r.stderr)[-2000:])
+    # image paths are: null"). NOTE: avdmanager only accepts it AFTER the verb
+    # ("create avd --sdk_root=...") — as a global flag it fails with
+    # "not a valid global flag".
+    avd_args = [
+        paths["avdmanager"],
+        "create", "avd",
+        "--sdk_root=" + paths["sdk_dir"],
+        "-n", name,
+        "-k", config.SYSTEM_IMAGE,
+        "-d", config.DEVICE_PROFILE,
+        "--force",
+    ]
+    r = _run(avd_args, sdk_dir=sdk_dir, input="no\n",
+             text=True, capture_output=True, timeout=600)
+    out = r.stdout + r.stderr
+    if r.returncode != 0 and "--sdk_root" in out and "not a valid" in out:
+        # Some avdmanager builds reject --sdk_root entirely; retry without it.
+        # ANDROID_HOME/ANDROID_SDK_ROOT are pinned by _run, which is enough on
+        # its own to point at the right SDK directory.
+        log("avdmanager rejected --sdk_root; retrying without it...")
+        avd_args = [a for a in avd_args if not a.startswith("--sdk_root")]
+        r = _run(avd_args, sdk_dir=sdk_dir, input="no\n",
+                 text=True, capture_output=True, timeout=600)
+        out = r.stdout + r.stderr
+    log(out[-2000:])
     if r.returncode != 0:
         # Self-diagnosing details: which SDK root avdmanager actually used
         # and what images were visible there.
@@ -206,8 +214,10 @@ def install_apk(avd_name, apk_path, log, sdk_dir=None):
 
 def delete_avd(name, sdk_dir=None):
     paths = sdk.sdk_paths(sdk_dir)
-    _run([paths["avdmanager"], "--sdk_root=" + paths["sdk_dir"],
-          "delete", "avd", "-n", name],
+    _run([paths["avdmanager"],
+          "delete", "avd",
+          "--sdk_root=" + paths["sdk_dir"],
+          "-n", name],
          sdk_dir=sdk_dir, capture_output=True, timeout=120)
 
 
