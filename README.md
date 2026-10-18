@@ -8,6 +8,16 @@ A free, open-source **Windows** launcher for Android emulation — no Android St
 > Google's own emulator (open-source, part of AOSP). That is the honest, shippable scope
 > for a solo project: nobody needs to reimplement QEMU or the GPU translator.
 
+## Features (v0.2.0)
+
+- One-click Setup: downloads Google's emulator + Android 14 Play Store image (~3–4 GB, once)
+- **RAM choice per device** — 1 GB / 2 GB / 4 GB when creating a device
+- **Install APK** — pick any `.apk` and install it on the running device
+- **Clone device** — duplicate a configured device (apps + data) for multi-account use
+- **Launch All** — start every device with one click (staggered, so the PC stays responsive)
+- **Auto-update check** — the app tells you when a newer release is on GitHub
+- Launch / Delete devices, live log window
+
 ## Quick start (Windows 10/11, 64-bit)
 
 1. Install Python 3.10+ from python.org (tick **"Add python.exe to PATH"** during install).
@@ -64,7 +74,8 @@ android-emulator-launcher/
 ├── app/
 │   ├── config.py           # URLs, package list, paths
 │   ├── sdk.py              # SDK download + package install
-│   └── avd.py              # AVD create/list/launch/delete
+│   ├── avd.py              # AVD create/list/launch/delete/clone/APK install
+│   └── updater.py          # GitHub release update checker
 ├── scripts/
 │   └── build_exe.bat       # PyInstaller one-file build
 ├── .github/workflows/
@@ -75,8 +86,11 @@ android-emulator-launcher/
 
 ## Roadmap
 
-- [ ] Per-device settings (RAM, CPU cores, resolution)
-- [ ] APK drag-and-drop install
+- [x] Per-device RAM choice (1/2/4 GB)
+- [x] APK install button
+- [x] Device clone
+- [x] Launch-all button
+- [x] Auto-update check
 - [ ] Snapshot save/load buttons
 - [ ] Dark mode
 
